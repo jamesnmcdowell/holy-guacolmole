@@ -22,12 +22,16 @@ class Player(Physics, pg.sprite.Sprite):
         Physics.__init__(self)
         pg.sprite.Sprite.__init__(self)
         #import image of advocado
+        self.frame_start_pos = None
         self.image = pg.image.load('advocado.png').convert_alpha()
         self.image = pg.transform.scale(self.image, (30, 55))
         self.rect = self.image.get_rect(topleft=location)
         self.speed = speed
-        self.jump_power = -9.0
+        self.jump_height = -9.0
+        self.jump_release_height= -3.0
         self.collide_below = False
+        self.total_displacement = None
+        self.on_moving = False
 
     def check_keys(self, keys):
         # left-right movement
@@ -69,16 +73,42 @@ class Player(Physics, pg.sprite.Sprite):
         self.rect.move_ip((0,-1))
         return collide
 
+    def check_moving(self,obstacles):
+        if not self.fall:
+            now_moving = self.on_moving
+            any_moving, any_non_moving = [], []
+            for collide in self.collide_below:
+                if collide.type == "moving":
+                    self.on_moving = collide
+                    any_moving.append(collide)
+                else:
+                    any_non_moving.append(collide)
+            if not any_moving:
+                self.on_moving = False
+            elif any_non_moving or now_moving in any_moving:
+                self.on_moving = now_moving
+
     def jump(self, obstacles):
         if not self.fall:
-            self.velocity[1] += self.jump_power
+            self.velocity[1] += self.jump_height
             self.fall = True
 
+    def jump_release(self):
+        if self.fall:
+            if self.velocity[1] < self.jump_release_height:
+                self.velocity[1] = self.jump_release_height
+
     def update(self, obstacles, keys):
+        # self.check_moving(obstacles)
+
+        self.frame_start_pos = self.rect.topleft
         self.collide_below = self.check_below(obstacles)
         self.check_keys(keys)
         self.check_position(obstacles)
         self.physics_update()
+        start = self.frame_start_pos
+        end = self.rect.topleft
+        self.total_displacement = (end[0]-start[0], end[1]-start[1])
       
     def draw(self, surface):
         #blit player onto level
@@ -104,30 +134,52 @@ class Control(object):
         self.fps = 60.0
         self.keys = pg.key.get_pressed()
         self.done = False
-        self.player = Player((50,920), 4)
-        self.level = pg.Surface((1000,1000)).convert()
+        self.player = Player((50,2920), 4)
+        self.level = pg.Surface((1000,3000)).convert()
         self.level_rect = self.level.get_rect()
+        self.win_text,self.win_rect = self.make_text()
         self.viewport = self.screen.get_rect(bottom=self.level_rect.bottom)
         self.obstacles = self.make_obstacles()
 
+    def make_text(self):
+        """Renders a text object. Text is only rendered once."""
+        font = pg.font.Font(None, 100)
+        message = "Holy Guacamole!!"
+        text = font.render(message, True, (100,100,175))
+        rect = text.get_rect(centerx=self.level_rect.centerx, y=1800)
+        return text, rect
+
     def make_obstacles(self): 
         #add obstacles to sprite.Group
-        walls = [Block(pg.Color(75,0,130,0), (0,980,1000,20)),
-                 Block(pg.Color(64,224,208,0), (0,988,1000,4)),
-                 Block(pg.Color(75,0,130,0), (0,0,20,1000)),
-                 Block(pg.Color(64,224,208,0), (8,0,4,1000)),
-                 Block(pg.Color(75,0,130,0), (980,0,20,1000))]
-        static = [Block(pg.Color(75,0,130,0), (350,850,200,40)),
-                  Block(pg.Color(75,0,130,0), (350,650,40,240)),
-                  Block(pg.Color(75,0,130,0), (600,880,200,100)),
-                  Block(pg.Color("red"), (300,780,50,20)),
-                  Block(pg.Color("red"), (20,630,50,20)),
-                  Block(pg.Color("red"), (80,530,50,20)),
-                  Block(pg.Color(75,0,130,0), (130,470,170,215)),
-                  Block(pg.Color(75,0,130,0), (20,760,80,20)),
-                   Block(pg.Color(75,0,130,0), (20,860,350,30)),
-                  Block(pg.Color(75,0,130,0), (400,740,30,40)) ]
+        walls = [Block(pg.Color(75,0,130,0), (0,2980,1000,20)),
+                 Block(pg.Color(64,224,208,0), (0,2988,1000,4)),
+                 Block(pg.Color(75,0,130,0), (0,0,20,3000)),
+                 Block(pg.Color(64,224,208,0), (8,0,4,3000)),
+                 Block(pg.Color(75,0,130,0), (980,0,20,3000))]
+        static = [
+                #   Block(pg.Color("pink"), (70,920,10,2100)),
+                  Block(pg.Color(75,0,130,0), (350,2850,200,40)),
+                  Block(pg.Color(75,0,130,0), (350,2650,40,240)),
+                  Block(pg.Color(75,0,130,0), (600,2880,200,100)),
+                  Block(pg.Color("red"), (300,2780,50,20)),
+                  Block(pg.Color("red"), (20,2630,50,20)),
+                  Block(pg.Color("red"), (80,2530,50,20)),
+                  Block(pg.Color(75,0,130,0), (20,2760,80,20)),
+                  Block(pg.Color(75,0,130,0), (20,2860,350,30)),
+                  Block(pg.Color("yellow"), (600,2740,30,40)),
+                  Block(pg.Color("green"), (130,2470,170,215)),
+                  Block(pg.Color("green"), (530,2500,20,10)),
+                  Block(pg.Color("green"), (800,2470,20,10)),
+                  Block(pg.Color("green"), (850,2320,20,10)),
+                  Block(pg.Color("green"), (900,2190,20,10)),
+                  Block(pg.Color("green"), (450,2100,400,10)) 
+                  
+                  ]
         return pg.sprite.Group(walls, static)
+
+    def update_viewport(self, speed):
+        self.viewport.center = self.player.rect.center
+        self.viewport.clamp_ip(self.level_rect)
 
     def event_loop(self):
         #enable player to always be able to quit or jump
@@ -137,16 +189,21 @@ class Control(object):
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_SPACE:
                     self.player.jump(self.obstacles)
+            elif event.type == pg.KEYUP:
+                if event.key == pg.K_SPACE:
+                    self.player.jump_release()
 
     def update(self):
         #update player and movements within level
         self.keys = pg.key.get_pressed()
         self.player.update(self.obstacles, self.keys)
-     
+        self.update_viewport(self.player.total_displacement)
+
     def draw(self):
         #draw all objects into level
         self.level.fill(pg.Color(230,230,250, 0), self.viewport)
         self.obstacles.draw(self.level)
+        self.level.blit(self.win_text, self.win_rect)
         self.player.draw(self.level)
         self.screen.blit(self.level, (0,0), self.viewport)
 
