@@ -1,10 +1,10 @@
 # Holy Guacamole
 
-One Paragraph of project description goes here
+This is a simple platforming game written in python using the pygame library .
 
 ## Getting Started
 
-This is a simple platforming game written in python using the pygame library . Controls of game are space for jump and left and right arrows for movement.
+ Make sure you have python 2 or 3 installed in order for game to run. Controls of game are space for jump and left and right arrows for movement.
 
 In order to play open terminal and run the following command within the game's folder:
 ```
@@ -17,4 +17,4 @@ python game.py
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
